@@ -32,5 +32,6 @@ app.jinja_loader = ChoiceLoader([
 
 db.init_app(app)
 app.register_blueprint(spotify_api)
+app.static_folder = os.path.join(os.getcwd(), 'static/dist/')
 
 __version__ = '1.0.0'

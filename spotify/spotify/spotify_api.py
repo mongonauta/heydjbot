@@ -1,11 +1,17 @@
-from flask import Blueprint, render_template, redirect, request  # ,, , url_for
+import os
+from flask import Blueprint, render_template, redirect, request, url_for
 
 
 spotify_api = Blueprint('spotify_api', __name__)
 
 
-@app.route('/callback')
+@spotify_api.route('/callback')
 def callback():
+    pass
+
+
+@spotify_api.route('/logout')
+def logout():
     pass
 
 
