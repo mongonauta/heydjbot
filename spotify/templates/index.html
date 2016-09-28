@@ -28,9 +28,15 @@
         <div id="navbar" class="navbar-collapse collapse">
           <ul class="nav navbar-nav navbar-right">
             <li>
-                <a href="%% url_for('spotify_api.logout') %%" style="text-align:right;padding-top: 2px;padding-bottom: 0;">
-                    <img src="" alt="" style="width: 30%;" />
-                </a>
+                <% if not session.user_info %>
+                    <a href="%% url_for('spotify_api.connect') %%" style="adding-top: 13px; padding-bottom: 0; height: 50px; display: block;">
+                        <span style="width: 30%;">Login</span>
+                    </a>
+                <% else %>
+                    <a href="%% url_for('spotify_api.logout') %%" style="text-align:right;padding-top: 2px;padding-bottom: 0;">
+                        <img src="%% session.user_info.images[0].url %%" alt="%% session.user_info.display_name %%" style="width: 30%;" />
+                    </a>
+                <% endif %>
             </li>
           </ul>
         </div>
@@ -39,7 +45,19 @@
 
     <div class="container-fluid">
       <div class="row">
-
+<div class="container">
+    <h1>Search for an Artist</h1>
+    <p>Type an artist name and click on "Search". Then, click on any album from the results to play 30 seconds of its first track.</p>
+    <form id="search-form">
+        <input type="text" id="query" value="" class="form-control" placeholder="Type an Artist Name"/>
+        <input type="submit" id="search" class="btn btn-primary" value="Search" />
+    </form>
+    <div id="results"></div>
+</div>
+<script id="results-template" type="text/x-handlebars-template">
+    {{#each albums.items}}
+    <div style="background-image:url({{images.0.url}})" data-album-id="{{id}}" class="cover"></div>
+    {{/each}
       </div>
     </div>
 

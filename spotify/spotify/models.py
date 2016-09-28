@@ -13,6 +13,8 @@ class User(db.Model):
     spotify_user = db.Column(db.String)
     telegram_user = db.Column(db.String)
 
+    spotify_access_token = db.Column(db.String)
+
     registered_on = db.Column('registered_on', db.DateTime)
 
     def __init__(self, spotify_user, telegram_user):
