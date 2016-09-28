@@ -9,10 +9,10 @@ module.exports = function(grunt) {
         pkg: grunt.file.readJSON('package.json'),
 
         clean: {
-            vendor: ['vendor', './dist/js/vendor.js', './dist/css/bootstrap.css'],
+            vendor: ['vendor', '../spotify/static/js/vendor.js', '../spotify/static/css/bootstrap.css'],
             build:  ['build'],
             dev: {
-                src: ['./dist/js/app.js', './dist/templates', './dist/css/style.css'],
+                src: ['../spotify/static/js/app.js', '../spotify/static/templates', '../spotify/static/css/style.css'],
             }
         },
 
@@ -41,14 +41,14 @@ module.exports = function(grunt) {
                     'vendor/jquery/jquery.js',
                     'vendor/angular/angular.js',
                     'vendor/**/*.js'],
-                dest: './dist/js/vendor.js'
+                dest: '../spotify/static/js/vendor.js'
             },
             dev: {
                 src: [
                     'ng-src/js/app.js',            // first, main app file
                     'ng-src/js/**/index.js',       // then, main index.js file for each module
                     'ng-src/js/**/*.js'],          // and them the rest of .js files
-                dest: './dist/js/app.js'
+                dest: '../spotify/static/js/app.js'
             }
         },
 
@@ -58,7 +58,7 @@ module.exports = function(grunt) {
             },
             prod: {
                 files: {
-                    './dist/js/app.js' : ['./dist/js/app.js']
+                    '../spotify/static/js/app.js' : ['../spotify/static/js/app.js']
                 }
             }
         },
@@ -68,12 +68,12 @@ module.exports = function(grunt) {
                 // copy only css and fonts, because .js files are not copied, they are concat'ed
                 files: [{
                     src: 'vendor/**/*.css',
-                    dest: './dist/css/',
+                    dest: '../spotify/static/css/',
                     flatten: true,
                     expand: true
                 },{
                     src: 'vendor/**/fontawesome*.*',
-                    dest: './dist/fonts/',
+                    dest: '../spotify/static/fonts/',
                     flatten: true,
                     expand: true
                 }]
@@ -87,7 +87,7 @@ module.exports = function(grunt) {
                     expand: true
                 },{
                     src: ['ng-src/css/*.css','ng-src/css/**/*.css','ng-src/css/**/*.map'],
-                    dest: './dist/css/',
+                    dest: '../spotify/static/css/',
                     flatten: true,
                     expand: true
                 },{
@@ -95,12 +95,12 @@ module.exports = function(grunt) {
                         'bower_components/bootstrap/dist/css/bootstrap.css',
                         'bower_components/bootstrap/dist/css/bootstrap.css.map'
                     ],
-                    dest: './dist/css/',
+                    dest: '../spotify/static/css/',
                     flatten: true,
                     expand: true
                 },{
                     src: 'ng-src/fonts/**/*.*',
-                    dest: './dist/fonts/',
+                    dest: '../spotify/static/fonts/',
                     flatten: true,
                     expand: true
                 }]
@@ -109,7 +109,7 @@ module.exports = function(grunt) {
             img: {
                 files: [{
                     src: 'ng-src/img/**/*.*',
-                    dest: './dist/img/',
+                    dest: '../spotify/static/img/',
                     flatten: true,
                     expand: true
                 }]
@@ -118,7 +118,7 @@ module.exports = function(grunt) {
             fonts: {
                 files: [{
                     src: 'ng-src/fonts/**/*.*',
-                    dest: './dist/fonts/',
+                    dest: '../spotify/static/fonts/',
                     flatten: true,
                     expand: true
                 }]
@@ -134,8 +134,8 @@ module.exports = function(grunt) {
                     verbose: true
                 },
                 files: [{
-                    src: './dist/js/vendor.js',
-                    dest: './dist/js/vendor.min.js'
+                    src: '../spotify/static/js/vendor.js',
+                    dest: '../spotify/static/js/vendor.min.js'
                 }]
             }
         },
