@@ -1,6 +1,7 @@
+import json
 import requests
 
-from flask import Blueprint, render_template, redirect, request, session, url_for
+from flask import Blueprint, render_template, redirect, request, session, jsonify
 
 from .models import User, db
 from .local_credentials import SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI
@@ -8,7 +9,18 @@ from .local_credentials import SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY
 spotify_api = Blueprint('spotify_api', __name__)
 
 
-@spotify_api.route('/callback')
+@spotify_api.route('/api/v1/artist/<path:artist_name>', methods=['GET'])
+def artist(artist_name):
+    url = 'https://api.spotify.com/v1/search?q={}&type=album'
+    resp = requests.get(
+        url=url.format(artist_name)
+    )
+    # if resp.status_code != 200:
+
+    return jsonify(json.loads(resp.content))
+
+
+@spotify_api.route('/callback', methods=['GET'])
 def callback():
     code = request.args.get('code')
     url = 'https://accounts.spotify.com/api/token'
@@ -34,7 +46,7 @@ def callback():
     return redirect('/')
 
 
-@spotify_api.route('/logout')
+@spotify_api.route('/logout', methods=['GET'])
 def logout():
     session['authorization'] = None
     session['user_info'] = None
@@ -42,7 +54,7 @@ def logout():
     return redirect('/')
 
 
-@spotify_api.route('/login')
+@spotify_api.route('/login', methods=['GET'])
 def connect():
     url = 'https://accounts.spotify.com/authorize/?client_id={}&redirect_uri={}&response_type=code'
     return redirect(url.format(
@@ -51,7 +63,7 @@ def connect():
     ))
 
 
-@spotify_api.route('/')
+@spotify_api.route('/', methods=['GET'])
 def index():
     if 'user_info' in session and session['user_info']:
         return render_template('index.html')
