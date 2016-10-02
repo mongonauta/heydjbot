@@ -1,4 +1,5 @@
 import datetime
+import pandas as pd
 import os
 import sqlite3
 
@@ -96,21 +97,34 @@ class DatabaseManager:
 
     def create_user(self, telegram_id, telegram_first_name, spotify_id, token, refresh_token):
         conn = sqlite3.connect(self._DATABASE)
-        last_id = conn.execute(
-            """
-              INSERT INTO users (
-                telegram_user_id, telegram_first_name, registered_on, spotify_id, access_token, refresh_token
-              )
-              VALUES (?, ?, ?, ?, ?, ?)""", (
-                telegram_id,
-                telegram_first_name,
-                datetime.datetime.now(),
-                spotify_id,
-                token,
-                refresh_token,
+        try:
+            last_id = conn.execute(
+                """
+                  INSERT INTO users (
+                    telegram_user_id, telegram_first_name, registered_on, spotify_id, access_token, refresh_token
+                  )
+                  VALUES (?, ?, ?, ?, ?, ?)""", (
+                    telegram_id,
+                    telegram_first_name,
+                    datetime.datetime.now(),
+                    spotify_id,
+                    token,
+                    refresh_token,
+                )
             )
-        )
-        conn.commit()
+            conn.commit()
+        except sqlite3.IntegrityError:
+            last_id = conn.execute(
+                """
+                  UPDATE users SET access_token = ?, refresh_token = ? WHERE telegram_user_id = ?
+                """, (
+                    token,
+                    refresh_token,
+                    telegram_id,
+                )
+            )
+            conn.commit()
+
         conn.close()
 
         return last_id
@@ -256,3 +270,21 @@ class DatabaseManager:
             'total': total_songs,
             'classified': total_classified
         }
+
+    def get_classified_songs(self, telegram_id):
+        conn = sqlite3.connect(self._DATABASE)
+        sql = """
+              SELECT
+                danceability, energy, loudness, speechiness, acousticness,
+                instrumentalness, liveness, valence, tempo, activity
+              FROM songs s, users u, song_user su
+              WHERE
+                activity IS NOT NULL AND
+                s.id = su.song_id AND
+                su.user_id = u.id AND
+                u.telegram_user_id = {}
+        """.format(telegram_id)
+        resp = pd.read_sql_query(sql, conn)
+        conn.close()
+
+        return resp

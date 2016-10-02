@@ -1,25 +1,53 @@
 #!flask/bin/python
 import json
 import os
-
 import requests
+
 from flask import Flask, render_template, jsonify, redirect, session, request
+
+import pandas as pd
+
+from sklearn import svm
+from sklearn.externals import joblib
 
 from database import DatabaseManager
 
 from settings.local_credentials import FLASK_KEY
 from settings.local_credentials import SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI
-from settings.local_credentials import DATABASE
+from settings.local_credentials import DATABASE, PICKLE
 
 app = Flask(__name__)
 
 app.secret_key = FLASK_KEY
 app.static_folder = os.path.join(os.getcwd(), 'static/')
 
+features = [
+    'danceability', 'energy', 'loudness', 'speechiness', 'acousticness',
+    'instrumentalness', 'liveness', 'valence', 'tempo'
+]
+categories = 'activity'
+
 
 @app.route('/', methods=['GET'])
 def index():
     return render_template('index.html')
+
+
+@app.route('/renew_token/<path:telegram_user>', methods=['GET'])
+def renew_token(telegram_user):
+    manager = DatabaseManager(DATABASE)
+    user = manager.get_user_by_telegram_id(telegram_user, access_token=True)
+    new_token = get_new_token(user['refresh_token'])
+
+    if 'error' not in new_token:
+        manager.update_token(telegram_user, new_token)
+
+        return jsonify({
+            'code': 1,
+            'message': 'New token created.'
+        })
+    else:
+        return jsonify(new_token)
 
 
 @app.route('/connect/<path:telegram_user>/<path:telegram_first_name>', methods=['GET'])
@@ -96,8 +124,45 @@ def song(song_name):
     resp = requests.get(
         url=url.format(song_name)
     )
-
     return jsonify(json.loads(resp.content))
+
+
+@app.route('/api/v1/song_predicted/<path:telegram_user>/<path:song_name>', methods=['GET'])
+def song_predicted(telegram_user, song_name):
+    manager = DatabaseManager(DATABASE)
+    user = manager.get_user_by_telegram_id(telegram_user, access_token=True)
+
+    url = 'https://api.spotify.com/v1/search?q={}&type=track'
+    resp = requests.get(
+        url=url.format(song_name)
+    )
+
+    tracks = resp.json()['tracks']['items']
+    clf = joblib.load(PICKLE)
+
+    output = []
+    for track in tracks:
+        track_data = {
+            'name': track['name'],
+            'popularity': track['popularity'],
+            'artists': ','.join(a['name'] for a in track['artists']),
+            'album_name': track['album']['name'],
+            'thumb': track['album']['images'][0]['url'] if track['album']['images'] else None,
+            'external_url': track['external_urls']['spotify']
+        }
+
+        track_features = get_track_features(track['id'], user['access_token'])
+
+        if track_features:
+            track_features_serie = {x: track_features[x] for x in features}
+            df = pd.DataFrame.from_records(track_features_serie, index=[0])
+            prediction = clf.predict(df)
+
+            track_data['activity'] = prediction[0] if prediction and len(prediction) else None
+
+        output.append(track_data)
+
+    return jsonify(output)
 
 
 @app.route('/api/v1/user_info/<path:telegram_user>/', methods=['GET'])
@@ -142,30 +207,38 @@ def classify(song_id, activity):
     })
 
 
+@app.route('/api/v1/update_pickle/<path:telegram_user>', methods=['GET'])
+def update_pickle(telegram_user):
+    manager = DatabaseManager(DATABASE)
+    df = manager.get_classified_songs(telegram_user)
+
+    for column in features:
+        df[column] = df[column].apply(lambda x: 0 if x == 'NA' else x)
+
+    clf = svm.SVC()
+    clf.fit(
+        df[features],
+        df[categories]
+    )
+
+    joblib.dump(clf, PICKLE)
+
+    return jsonify({'code': 1, 'trained': len(df)})
+
+
 @app.route('/api/v1/get_playlists_songs/<path:telegram_user>/', methods=['GET'])
 def get_playlists_songs(telegram_user):
     manager = DatabaseManager(DATABASE)
     user = manager.get_user_by_telegram_id(telegram_user, access_token=True)
 
-    playlists = []
-    tries = 1
-    while tries < 2:
-        url = 'https://api.spotify.com/v1/me/playlists'
-        resp = requests.get(
-            url=url,
-            headers={
-                'Authorization': user['access_token']
-            }
-        )
-
-        if resp.status_code == 401:
-            new_token = get_new_token(user['refresh_token'])
-            manager.update_token(telegram_user, new_token)
-            tries += 1
-
-        else:
-            playlists = resp.json()['items']
-            break
+    url = 'https://api.spotify.com/v1/me/playlists'
+    resp = requests.get(
+        url=url,
+        headers={
+            'Authorization': user['access_token']
+        }
+    )
+    playlists = resp.json()['items']
 
     saved_songs = 0
     for playlist in playlists:
@@ -194,7 +267,7 @@ def get_new_token(refresh_token):
     )
 
     if resp.status_code != 200:
-        print resp.json()
+        return resp.json()
 
     else:
         token = resp.json()
@@ -264,6 +337,6 @@ def get_playlist_tracks_info(playlist_owner, playlist_id, access_token):
 
 if __name__ == '__main__':
     app.run(
-        host='192.168.0.195',
+        host='127.0.0.1',
         debug=True
     )
