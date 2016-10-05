@@ -9,7 +9,8 @@ from telegram.ext import Updater, CommandHandler, RegexHandler, ConversationHand
 from common.secrets import TELEGRAM_TOKEN
 
 # FLASK SERVER ROOT
-API_SERVER = 'http://192.168.0.195:5000/api/v1'
+API_SERVER = 'http://127.0.0.1:5000/api/v1'
+PICKLE = 'activities.pickle'
 
 # ACTIVITY TAGS
 WORK, RUN, TRAVEL, RELAX, PARTY, SHIT = range(6)
@@ -29,6 +30,7 @@ ARTIST_TEMPLATE = u"""
 """
 SONG_TEMPLATE = u"""
 {} (Popularity% {})\n
+Recommended Activity: {}
 Artists: {}\n
 Album: {}\n
 {}
@@ -82,6 +84,7 @@ def show_help(bot, update):
 
         '/connect - connect your Spotify connection.\n'
         '/train - to talk about the music you like.\n'
+        '/sync - to update predictions with new training.\n'
     )
 
     return None
@@ -188,6 +191,14 @@ def save_classification(bot, update):
         )
     return SAVE_SONG
 
+
+def update_pickle(bot, update):
+    user = update.message.from_user
+    logger.info('update_pickle %s' % user)
+
+    resp = requests.get(url='{}/update_pickle/{}'.format(API_SERVER, user.id))
+    update.message.reply_text('Result: %s' % resp.json())
+    return None
 
 # #############################################################################
 # NAVIGATION COMMANDS
@@ -297,53 +308,76 @@ def song(bot, update):
 
 
 def search_song(bot, update):
+    user = update.message.from_user
     song_name = update.message.text
-    logger.info('search_song %s' % song_name)
 
+    logger.info('search_song %s - %s' % (user, song_name))
     resp = requests.get(
-        url='{}/song/{}'.format(API_SERVER, song_name)
+        url='{}/user_info/{}/'.format(API_SERVER, user.id)
     )
 
-    if resp.status_code != 200 or not resp.json():
-        update.message.reply_text('Sorry, you are searching a really strange song for Spotify')
-        return ConversationHandler.END
-
-    elif len(resp.json()['tracks']['items']) == 1:
-        x = resp.json()['tracks']['items'].pop()
+    if not resp.json():
         update.message.reply_text(
-            SONG_TEMPLATE.format(
-                x['name'],
-                x['popularity'],
-                ','.join(a['name'] for a in x['artists']),
-                x['album']['name'],
-                x['album']['images'][0]['url'] if x['album']['images'] else None,
-                x['external_urls']['spotify']
-            )
+            'Sorry {}, but I can\'t do that. Please, use "connect" command'.format(user['first_name'])
         )
-        return ConversationHandler.END
 
     else:
-        result_search_cache['current_position'] = 0
-        result_search_cache['items'] = []
+        resp = requests.get(
+            url='{}/song_predicted/{}/{}'.format(API_SERVER, user.id, song_name)
+        )
 
-        for x in resp.json()['tracks']['items']:
-            result_search_cache['items'].append(
+        if resp.status_code != 200 or not resp.json():
+            update.message.reply_text('Sorry, you are searching a really strange song for Spotify')
+            return ConversationHandler.END
+
+        elif len(resp.json()) == 1:
+            x = resp.json().pop()
+            if 'activity' in x:
+                activity = ACTIVITIES_KEYBOARD[0][x['activity']]
+            else:
+                activity = 'NA'
+
+            update.message.reply_text(
                 SONG_TEMPLATE.format(
                     x['name'],
                     x['popularity'],
-                    ','.join(a['name'] for a in x['artists']),
-                    x['album']['name'],
-                    x['album']['images'][0]['url'] if x['album']['images'] else None,
-                    x['external_urls']['spotify']
+                    activity,
+                    x['artists'],
+                    x['album_name'],
+                    x['thumb'],
+                    x['external_url']
                 )
             )
+            return ConversationHandler.END
 
-        keyboard = [NAVIGATION_KEYBOARD[1:]]
-        update.message.reply_text(
-            result_search_cache['items'][0],
-            reply_markup=ReplyKeyboardMarkup(keyboard, one_time_keyboard=True)
-        )
-        return NAVIGATE
+        else:
+            result_search_cache['current_position'] = 0
+            result_search_cache['items'] = []
+
+            for x in resp.json():
+                if 'activity' in x:
+                    activity = ACTIVITIES_KEYBOARD[0][x['activity']]
+                else:
+                    activity = 'NA'
+
+                result_search_cache['items'].append(
+                    SONG_TEMPLATE.format(
+                        x['name'],
+                        x['popularity'],
+                        activity,
+                        x['artists'],
+                        x['album_name'],
+                        x['thumb'],
+                        x['external_url']
+                    )
+                )
+
+            keyboard = [NAVIGATION_KEYBOARD[1:]]
+            update.message.reply_text(
+                result_search_cache['items'][0],
+                reply_markup=ReplyKeyboardMarkup(keyboard, one_time_keyboard=True)
+            )
+            return NAVIGATE
 
 
 # #############################################################################
@@ -397,6 +431,8 @@ def main():
         },
         fallbacks=[CommandHandler('cancel', cancel_navigation)]
     ))
+
+    dp.add_handler(CommandHandler('sync', update_pickle))
 
     dp.add_handler(RegexHandler('.*', start))
 

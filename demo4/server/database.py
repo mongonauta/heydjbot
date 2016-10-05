@@ -288,3 +288,24 @@ class DatabaseManager:
         conn.close()
 
         return resp
+
+    def get_activity_songs(self, telegram_id, activity_id, limit):
+        conn = sqlite3.connect(self._DATABASE)
+        sql = """
+            SELECT
+                s.id, s.spotify_id, s.name, s.activity
+            FROM
+                songs s, song_user su, users u
+            WHERE
+                u.telegram_user_id={} AND
+                su.user_id=u.id AND
+                s.id=su.song_id AND
+                activity={}
+            ORDER BY RANDOM()
+            LIMIT {}
+        """.format(telegram_id, activity_id, limit)
+        cursor = conn.execute(sql)
+        resp = cursor.fetchall()
+        conn.close()
+
+        return [{'id': x[0], 'spotify_id': x[1], 'name': x[2], 'activity': x[3]} for x in resp ]
