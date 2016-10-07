@@ -12,6 +12,8 @@ from settings.local_credentials import FLASK_KEY
 from settings.local_credentials import SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI
 from settings.local_credentials import DATABASE
 
+ACTIVITIES = ['WORK', 'RUN', 'TRAVEL', 'RELAX', 'PARTY', 'SHIT']
+
 app = Flask(__name__)
 
 app.secret_key = FLASK_KEY
@@ -159,7 +161,7 @@ def create_playlist(telegram_user, activity_id):
                 },
                 data='{\"name\": \"Hey DJ bot Amazing playlist\", \"public\": false}'
             )
-            if resp.status_code != 200:
+            if resp.status_code != 201:
                 return jsonify({
                     'code': -1,
                     'message': u'Error de autenticación. Prueba con "/conectar"'
@@ -212,9 +214,11 @@ def song(song_name):
             'track_album_name': track['album']['name'],
             'track_popularity': track['popularity'],
 
-            'artists': ','.join(a['name'] for a in track['artists']),
+            'artists': track['artists'],
             'thumb': track['album']['images'][0]['url'] if track['album']['images'] else None,
-            'external_url': track['external_urls']['spotify']
+            'external_url': track['external_urls']['spotify'],
+
+            'activity': ACTIVITIES[1]
         }
     #
     #     track_features = get_track_features(track['id'], user['access_token'])
@@ -236,7 +240,7 @@ def save_song(telegram_user):
     manager = DatabaseManager(DATABASE)
     user_data = manager.get_user_by_telegram_id(telegram_user, access_token=True)
 
-    track_id = request.json['track_id']
+    track_id = request.form['track_id']
     track_features = get_track_features(track_id, user_data['access_token'])
     if not track_features:
         return ({
@@ -246,11 +250,11 @@ def save_song(telegram_user):
 
     track = {
         'track_id': track_id,
-        'track_name': request.json['track_name'],
-        'track_album_id': request.json['track_album_id'],
-        'track_album_name': request.json['track_album_name'],
-        'track_popularity': request.json['track_popularity'],
-        'activity': request.json['activity'],
+        'track_name': request.form['track_name'],
+        'track_album_id': request.form['track_album_id'],
+        'track_album_name': request.form['track_album_name'],
+        'track_popularity': request.form['track_popularity'],
+        'track_artists': request.form['artists'].split(','),
 
         'duration': track_features['duration_ms'] if track_features else 'NA',
         'danceability': track_features['danceability'] if track_features else 'NA',
@@ -266,11 +270,12 @@ def save_song(telegram_user):
         'tempo': track_features['tempo'] if track_features else 'NA'
     }
 
-    manager.add_songs(user_data['id'], track)
+    inserted_track_id = manager.add_songs(user_data['id'], [track])
+    manager.classify_song(inserted_track_id, ACTIVITIES.index(request.form['activity']))
 
     return jsonify({
         'code': 1,
-        'saved_songs': 1
+        'message': 'Saved song succesfully!!!!'
     })
 
 

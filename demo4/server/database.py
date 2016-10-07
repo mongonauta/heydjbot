@@ -163,6 +163,7 @@ class DatabaseManager:
         return resp
 
     def add_songs(self, user_id, tracks):
+        track_id = -1
         conn = sqlite3.connect(self._DATABASE)
         with conn:
             for track in tracks:
@@ -226,6 +227,8 @@ class DatabaseManager:
 
                 except sqlite3.IntegrityError:
                     print 'ignoring %s' % track
+
+        return track_id
 
     def classify_song(self, track_id, activity):
         conn = sqlite3.connect(self._DATABASE)
