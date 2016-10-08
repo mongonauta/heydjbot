@@ -1,16 +1,20 @@
 #!flask/bin/python
 # -*- coding: utf-8 -*-
-import json
 import os
 import requests
 
 from flask import Flask, render_template, jsonify, redirect, session, request
 
+# import pandas as pd
+#
+# from sklearn import svm
+# from sklearn.externals import joblib
+
 from database import DatabaseManager
 
 from settings.local_credentials import FLASK_KEY
 from settings.local_credentials import SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI
-from settings.local_credentials import DATABASE
+from settings.local_credentials import DATABASE  # , PICKLE
 
 ACTIVITIES = ['WORK', 'RUN', 'TRAVEL', 'RELAX', 'PARTY', 'SHIT']
 
@@ -196,6 +200,9 @@ def create_playlist(telegram_user, activity_id):
 
 @app.route('/api/v1/song/<path:song_name>', methods=['GET'])
 def song(song_name):
+    # manager = DatabaseManager(DATABASE)
+    # user = manager.get_user_by_telegram_id(telegram_user, access_token=True)
+
     url = 'https://api.spotify.com/v1/search?q={}&type=track'
     resp = requests.get(
         url=url.format(song_name)
@@ -203,7 +210,6 @@ def song(song_name):
 
     tracks = resp.json()['tracks']['items']
     # clf = joblib.load(PICKLE)
-    #
 
     output = []
     for track in tracks:
@@ -220,16 +226,17 @@ def song(song_name):
 
             'activity': ACTIVITIES[1]
         }
-    #
-    #     track_features = get_track_features(track['id'], user['access_token'])
-    #
-    #     if track_features:
-    #         track_features_serie = {x: track_features[x] for x in features}
-    #         df = pd.DataFrame.from_records(track_features_serie, index=[0])
-    #         prediction = clf.predict(df)
-    #
-    #         track_data['activity'] = prediction[0] if prediction and len(prediction) else None
-    #
+
+        # user_data = manager.get_user_by_telegram_id(telegram_user, access_token=True)
+        # track_features = get_track_features(track['id'], user['access_token'])
+        #
+        # if track_features:
+        #     track_features_serie = {x: track_features[x] for x in features}
+        #     df = pd.DataFrame.from_records(track_features_serie, index=[0])
+        #     prediction = clf.predict(df)
+        #
+        # track_data['activity'] = prediction[0] if prediction and len(prediction) else None
+
         output.append(track_data)
 
     return jsonify(output)

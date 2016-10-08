@@ -1,1 +1,51 @@
-hola
+<html>
+<head>
+    <style>
+        body {
+            width: 75%;
+            margin: 40px auto;
+        }
+
+        .image {
+            width: 40%;
+            float: left;
+            text-align: right;
+        }
+
+        .image > img {
+            width: 60%;
+            height: auto;
+        }
+
+        .content {
+            width: 60%;
+            float: right;
+        }
+
+        .content > ul {
+            list-style-type: none;
+            padding: 40px 20px;
+        }
+
+        .content > ul > li {
+            padding: 10px 0;
+            font-size: 16px;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="image">
+            <img src="{{ url_for('static', filename='images/logo.png') }}" />
+        </div>
+        <div class="content">
+            <ul>
+                <li style="font-size: 24px;">Welcome to DJ Bot!!!!!!</li>
+                <li>Your Spotify account is now connected to me.</li>
+                <li>Type /help in our chat to know what can I do for you.</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>
